@@ -1,0 +1,31 @@
+# OASのバージョン
+openapi: "3.0.3"
+# APIの一般情報
+info:
+  title: Shopping API
+  version: "1.0"
+paths:
+  # リソース
+  /products:
+    description: 商品のカタログ
+    # HTTPメソッド
+    get:
+      deprecated: false
+      # アクションの短い説明
+      summary: 検索ワードにマッチした商品一覧を取得する
+      # アクションの長い説明
+      description: |
+        検索ワードで
+        カタログから商品を検索する
+      responses:
+        # アクションのレスポンス その1 HTTPステータス: 200
+        "200":
+          # レスポンスの説明
+          description: 検索ワードにマッチした商品を取得する
+    post:
+      deprecated: false
+      summary: 商品を追加する
+      description: 商品を追加する
+      responses:
+        "200":
+          description: 商品の追加に成功した
