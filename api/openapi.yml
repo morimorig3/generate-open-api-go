@@ -17,15 +17,115 @@ paths:
       description: |
         検索ワードで
         カタログから商品を検索する
+      # アクションのパラメーター（リクエストボディ以外）
+      parameters:
+        - name: free-query
+          description: 商品名、商品コードまたは、商品の説明の一部
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         # アクションのレスポンス その1 HTTPステータス: 200
         "200":
           # レスポンスの説明
           description: 検索ワードにマッチした商品を取得する
+          content:
+            application/json:
+              schema:
+                type: array
+                description: Productの配列
+                items:
+                  $ref: "#/components/schemas/product"
     post:
       deprecated: false
       summary: 商品を追加する
       description: 商品を追加する
+      requestBody:
+        description: 追加する商品の情報
+        content:
+          application/json:
+            schema:
+              required:
+                - name
+                - price
+                - supplierReference
+              properties:
+                name:
+                  type: string
+                price:
+                  type: number
+                supplierReference:
+                  type: string
+                description:
+                  type: string
       responses:
         "200":
           description: 商品の追加に成功した
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/product"
+  /products/{productId}:
+    parameters:
+      - $ref: "#/components/parameters/productId"
+    delete:
+      deprecated: false
+      summary: 商品を削除する
+      responses:
+        "204":
+          description: 商品の削除に成功した
+    patch:
+      deprecated: false
+      summary: 商品を更新する
+      requestBody:
+        description: 新しい商品の情報
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/product"
+      responses:
+        "200":
+          description: 商品の更新に成功した
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/product"
+components:
+  parameters:
+    productId:
+      name: productId
+      in: path
+      required: true
+      description: 商品ID
+      schema:
+        type: string
+  schemas:
+    product:
+      type: object
+      description: 商品
+      required:
+        - reference
+        - name
+        - price
+        - supplier
+      properties:
+        reference:
+          description: 商品のユニークID
+          type: string
+        name:
+          type: string
+        price:
+          description: in JPY
+          type: number
+        supplier:
+          type: object
+          description: 商品の生産者
+          required:
+            - reference
+            - name
+          properties:
+            reference:
+              type: string
+            name:
+              type: string

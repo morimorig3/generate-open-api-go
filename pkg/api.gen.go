@@ -8,22 +8,70 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"net/url"
 	"path"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
+	"github.com/oapi-codegen/runtime"
 )
+
+// Product 商品
+type Product struct {
+	Name string `json:"name"`
+
+	// Price in JPY
+	Price float32 `json:"price"`
+
+	// Reference 商品のユニークID
+	Reference string `json:"reference"`
+
+	// Supplier 商品の生産者
+	Supplier struct {
+		Name      string `json:"name"`
+		Reference string `json:"reference"`
+	} `json:"supplier"`
+}
+
+// ProductId defines model for productId.
+type ProductId = string
+
+// GetProductsParams defines parameters for GetProducts.
+type GetProductsParams struct {
+	// FreeQuery 商品名、商品コードまたは、商品の説明の一部
+	FreeQuery *string `form:"free-query,omitempty" json:"free-query,omitempty"`
+}
+
+// PostProductsJSONBody defines parameters for PostProducts.
+type PostProductsJSONBody struct {
+	Description       *string `json:"description,omitempty"`
+	Name              string  `json:"name"`
+	Price             float32 `json:"price"`
+	SupplierReference string  `json:"supplierReference"`
+}
+
+// PostProductsJSONRequestBody defines body for PostProducts for application/json ContentType.
+type PostProductsJSONRequestBody PostProductsJSONBody
+
+// PatchProductsProductIdJSONRequestBody defines body for PatchProductsProductId for application/json ContentType.
+type PatchProductsProductIdJSONRequestBody = Product
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// 検索ワードにマッチした商品一覧を取得する
 	// (GET /products)
-	GetProducts(ctx echo.Context) error
+	GetProducts(ctx echo.Context, params GetProductsParams) error
 	// 商品を追加する
 	// (POST /products)
 	PostProducts(ctx echo.Context) error
+	// 商品を削除する
+	// (DELETE /products/{productId})
+	DeleteProductsProductId(ctx echo.Context, productId ProductId) error
+	// 商品を更新する
+	// (PATCH /products/{productId})
+	PatchProductsProductId(ctx echo.Context, productId ProductId) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -35,8 +83,17 @@ type ServerInterfaceWrapper struct {
 func (w *ServerInterfaceWrapper) GetProducts(ctx echo.Context) error {
 	var err error
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetProductsParams
+	// ------------- Optional query parameter "free-query" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "free-query", ctx.QueryParams(), &params.FreeQuery)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter free-query: %s", err))
+	}
+
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetProducts(ctx)
+	err = w.Handler.GetProducts(ctx, params)
 	return err
 }
 
@@ -46,6 +103,38 @@ func (w *ServerInterfaceWrapper) PostProducts(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.PostProducts(ctx)
+	return err
+}
+
+// DeleteProductsProductId converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteProductsProductId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "productId" -------------
+	var productId ProductId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "productId", ctx.Param("productId"), &productId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter productId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteProductsProductId(ctx, productId)
+	return err
+}
+
+// PatchProductsProductId converts echo context to params.
+func (w *ServerInterfaceWrapper) PatchProductsProductId(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "productId" -------------
+	var productId ProductId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "productId", ctx.Param("productId"), &productId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter productId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PatchProductsProductId(ctx, productId)
 	return err
 }
 
@@ -79,18 +168,28 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/products", wrapper.GetProducts)
 	router.POST(baseURL+"/products", wrapper.PostProducts)
+	router.DELETE(baseURL+"/products/:productId", wrapper.DeleteProductsProductId)
+	router.PATCH(baseURL+"/products/:productId", wrapper.PatchProductsProductId)
 
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/5SRT0sCQRjGv0q858G2vO2tU3gTunpZdNKFnBl2xiBkoJmBSD0URkkQGRF5kP4cOnSo",
-	"/DBvY36MUFcJLbDjwvP+nt+zU4eY7XII66BitUchhJ0KFyJm5bWtfA4I7NNExpxBCBuZADQBLiiLRAwh",
-	"ZDNBJgsERKQqcoxYFwkv1Ypq8lGispjEQk2P/fmRPzNoHtH20Q7QPaB9BgJlqpbDw7urr5dbdE/o3tA1",
-	"0PQK7OcdmhbaRoq07TRuLtG2Cgwmikk0ZuVKEMI2VfmZF4GESsGZpBPHzSBYob2P7hqdQ2fQdNB058X+",
-	"5MJ/dKbFoDUBWatWo+Rgdcjn6+HovreEIiC4VH/+RdseDd598yaNLw7Oc/m/xfPHmWH7w+NT3+xOTReW",
-	"/e6gtdbfAQAA//+BcvOaTAIAAA==",
+	"H4sIAAAAAAAC/8xVz08TQRT+V8jocaVVPPWmITF4avRkgMOyfaVL2NlhZmrSNE06u2L4EZQggkRjiRIw",
+	"ogUjBw4Kf8ywpfwXZvZHu0u3UPHiaTO7b773vfd9720VGbZFbAyYM5SrIqJT3QIONDhRu1A2+FhBHQrA",
+	"DGoSbtoY5ZD39qX3RoyNIg2Z6kx0XkIawroF6tS5qCEKc2WTQgHlOC2DhphRAktXiLxCVDDj1MTTqFar",
+	"RR/jyfulRpqKIEC5CX58kLoHVYWZBvTCmHjocf4Z0qILuGxNAVUXKBSBAk67FOSWoindXekuS/eXdA78",
+	"LvSkZWVCZk2gV4CcrzfO1z+36/ODF5PgdrmB8WaPx0JDXSY7LO2pGTD49Tei5sWqSQGpKQ8UbZ+RyWfV",
+	"t6clmxATTw89yI8hDT0HyoLa7w5nVRk2AawTE+XQyHB2eEQl0nnJLz0TCs+u6r6zL51T6X6XziHS0DSk",
+	"2KS18+H86JN0D5RI7qIUexM4fk+KZekshpDOWhgutqSzPIGRT5HqCkvZHz0Cno94aYkxGU9n6a2uyLqI",
+	"4H9GJE6kaEhx0P0kmu2v31rvXknRPDuuX7hfoomaKwOtdEeqSAHuRO/6z9CkUpQRG7PASPeyWfUwbMwB",
+	"+13SlZCGX1lmhinG1RhespSwZCmaF/Mr3sKm4sbB8pFvUyiiHLqV6W6QTDi+kYRK6ZCgTqleCbxyjUz7",
+	"0v0oXVe6QopNKRodhbzXG97JZqCQb11WtiydVgYHOTuut3f3eqA0RGzWd9FIZ619+ttb2g7DLzsjb7O4",
+	"NdQ8AeMP7ULlrxqfnP8EkZQ1cP2y69lq0QQ/GXyD9NkBXYTJFEHjzep4vOXOe9s/ggX2D+4cyHO9lLqj",
+	"FnLbby2sekuNwBuXvJSuuorpbKZMtfODqwVqzQL3+5m0xqj/PjJHPvFTTHTh/hW7zltcutjaGZBzFNwx",
+	"dnJRpfWvG5Lp/rbVHiE6N0q9ReXV6/Sabub8G4ra2jj0e/HifzNZ6/2Rz20gwaLg0GS12p8AAAD///UB",
+	"Pr6SCQAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
